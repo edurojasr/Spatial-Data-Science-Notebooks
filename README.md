@@ -2,4 +2,4 @@
 
 Notebooks and more of Spatial Data Science
 
-Just a space form my learning of new skills in Spatial Data Science
+Just a space for my learning of new skills in Spatial Data Science
