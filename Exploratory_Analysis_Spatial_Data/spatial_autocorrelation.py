@@ -16,14 +16,28 @@ from shapely.geometry import Point
 # reporting the median listing price of units in each neighborhood in Berlin:
 
 # %%
-gdf: gpd.GeoDataFrame = gpd.read_file('data/berlin-neighbourhoods.geojson')
+gdf: gpd.GeoDataFrame = gpd.read_file("data/berlin-neighbourhoods.geojson")
 # %%
-bl_df: pd.DataFrame = pd.read_csv('data/berlin-listings.csv')
+bl_df: pd.DataFrame = pd.read_csv("data/berlin-listings.csv")
 
 # Create a geometry object from the lat and log in the csv file
 geometry: list[Point] = [Point(xy) for xy in zip(bl_df.longitude, bl_df.latitude)]
 crs: str = "EPSG:4326"
 bl_gdf = gpd.GeoDataFrame(bl_df, crs=crs, geometry=geometry) # type: ignore
+
 # %%
 # Check the data
-bl_gdf.plot()
+bl_gdf.info()
+# bl_gdf.plot()
+
+# %%
+# Cast as new type
+# bl_gdf['price'] = bl_gdf['price'].astype('float32')
+
+# %% [markdown]
+# ## Spatial join
+
+# %%
+sj_gdf: gpd.GeoDataFrame = gpd.sjoin(
+    gdf, bl_gdf, how="inner", op="intersects", lsuffix="left", rsuffix="rigth"
+)
