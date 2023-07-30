@@ -4,6 +4,7 @@ from typing import Any
 import esda
 import geopandas as gpd
 import libpysal as lps
+import mapclassify as mc
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -53,7 +54,6 @@ sj_gdf.info()
 # Calculate the mean price grouping by the neighbourhood_group
 # %%
 mean_price_gb: Any = sj_gdf["price"].groupby([sj_gdf["neighbourhood_group"]]).mean()  # type: ignore
-mean_price_gb
 
 gdf = gdf.join(mean_price_gb, on="neighbourhood_group")  # type: ignore
 
@@ -73,3 +73,49 @@ gdf.plot(column="median_pri")
 # %%
 fig, ax = plt.subplots(figsize=(12, 10), subplot_kw={"aspect": "equal"})
 gdf.plot(column="median_pri", scheme="Quantiles", k=5, cmap="GnBu", legend=True, ax=ax)
+
+# %% [markdown]
+# ## Spatial autocorrelation
+# The concept of spatial autocorrelation relates to the combination of two types of
+# similarity: spatial similarity and attribute similarity. Although there are many
+# different measures of spatial autocorrelation, they all combine these two types of
+# simmilarity into a summary measure.
+
+# ### Spatial similarity
+# Using spatial weights
+# %%
+df: gpd.GeoDataFrame = gdf
+wq: Any = lps.weights.Queen.from_dataframe(df=df)
+
+wq.transform = "r"
+
+# %% [markdown]
+# ## Attribute Similarity
+# measure of attribute similarity to pair up with this concept of spatial similarity.
+# The spatial lag
+# %%
+y = df["median_pri"]
+ylag = lps.weights.lag_spatial(w=wq, y=y)
+print(ylag)
+
+# %%
+# make quantiles
+ylagq5 = mc.Quantiles(y=ylag, k=5)
+
+ylagq5
+# %%
+f, ax = plt.subplots(1, figsize=(9, 9))
+df.assign(cl=ylagq5.yb).plot(
+    column="cl",
+    categorical=True,
+    k=5,
+    cmap="GnBu",
+    linewidth=0.1,
+    ax=ax,
+    edgecolor="white",
+    legend=True,
+)
+ax.set_axis_off()
+plt.title("Spatial Lag Median Price (Quintiles)")
+
+plt.show()
