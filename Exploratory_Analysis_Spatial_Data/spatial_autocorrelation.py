@@ -9,6 +9,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import seaborn as sbn
+from matplotlib import colors
 from shapely.geometry import Point
 
 # %% [markdown]
@@ -359,4 +360,168 @@ plt.plot(price, a + b * price, "r")
 plt.title("Moran Scatterplot")
 plt.ylabel("Spatial Lag of Price")
 plt.xlabel("Price")
+plt.show()
+
+# %% [markdown]
+# Now, instead of a single *i* statistic, we have an array of local *I*$_i$ statistics, stored
+# in the .Is attribute, and p-values from the simulation are in p_sim.
+# %%
+li = esda.moran.Moran_Local(y, wq)
+
+# %%
+li.q
+
+# %% [markdown]
+# We can again test for local clustering using permutations, but here we use conditional
+# random permutations (different distributions for each focal location)
+# %%
+li.p_sim
+
+# %%
+(li.p_sim < 0.05).sum()
+
+# %% [markdown]
+# We can distinguish the specific type of local spatial association reflected in the four
+# quadrants of the Moran Scatterplot above:
+# %%
+sig = li.p_sim < 0.05
+sig
+
+# %%
+hotspot = sig * li.q == 1
+coldspot = sig * li.q == 3
+doughnut = sig * li.q == 2
+diamond = sig * li.q == 4
+
+# %%
+hotspot
+# %%
+coldspot
+# %%
+doughnut
+# %%
+diamond
+
+# %%
+spots: list[str] = ["n.sig", "hot spot"]
+labels = [spots[i] for i in hotspot * 1]
+labels
+
+# %%
+df = df
+hmap = colors.ListedColormap(["red", "lightgrey"])  # type: ignore
+f, ax = plt.subplots(1, figsize=(9, 9))
+df.assign(cl=labels).plot(
+    column="cl",
+    categorical=True,
+    k=2,
+    cmap=hmap,
+    linewidth=0.1,
+    ax=ax,
+    edgecolor="white",
+    legend=True,
+)
+ax.set_axis_off()
+plt.show()
+
+# %%
+spots = ["n.sig", "cold spot"]
+labels = [spots[i] for i in coldspot * 1]
+labels
+
+# %%
+df = df
+hmap = colors.ListedColormap(["blue", "lightgrey"])  # type: ignore
+f, ax = plt.subplots(1, figsize=(9, 9))
+df.assign(cl=labels).plot(
+    column="cl",
+    categorical=True,
+    k=2,
+    cmap=hmap,
+    linewidth=0.1,
+    ax=ax,
+    edgecolor="white",
+    legend=True,
+)
+ax.set_axis_off()
+plt.show()
+
+# %%
+spots = ["n.sig", "doughnut"]
+labels = [spots[i] for i in doughnut * 1]
+labels
+
+# %%
+df = df
+hmap = colors.ListedColormap(["lightgrey", "lightblue"])  # type: ignore
+f, ax = plt.subplots(1, figsize=(9, 9))
+df.assign(cl=labels).plot(
+    column="cl",
+    categorical=True,
+    k=2,
+    cmap=hmap,
+    linewidth=0.1,
+    ax=ax,
+    edgecolor="white",
+    legend=True,
+)
+ax.set_axis_off()
+plt.show()
+
+# %%
+spots = ["n.sig", "diamond"]
+labels = [spots[i] for i in diamond * 1]
+labels
+
+# %%
+df = df
+hmap = colors.ListedColormap(["pink", "lightgrey"])  # type: ignore
+f, ax = plt.subplots(1, figsize=(9, 9))
+df.assign(cl=labels).plot(
+    column="cl",
+    categorical=True,
+    k=2,
+    cmap=hmap,
+    linewidth=0.1,
+    ax=ax,
+    edgecolor="white",
+    legend=True,
+)
+ax.set_axis_off()
+plt.show()
+
+# %%
+sig = 1 * (li.p_sim < 0.05)
+hotspot = 1 * (sig * li.q == 1)
+coldspot = 3 * (sig * li.q == 3)
+doughnut = 2 * (sig * li.q == 2)
+diamond = 4 * (sig * li.q == 4)
+spots = hotspot + coldspot + doughnut + diamond
+spots
+# %%
+spot_labels: list[str] = [
+    "0 ns",
+    "1 hot spot",
+    "2 doughnut",
+    "3 cold spot",
+    "4 diamond",
+]
+labels = [spot_labels[i] for i in spots]  # type: ignore
+
+# %%
+from matplotlib import colors
+
+hmap = colors.ListedColormap(["lightgrey", "red", "lightblue", "blue", "pink"])  # type: ignore
+f, ax = plt.subplots(1, figsize=(9, 9))
+df.assign(cl=labels).plot(
+    column="cl",
+    categorical=True,
+    k=2,
+    cmap=hmap,
+    linewidth=0.1,
+    ax=ax,
+    edgecolor="white",
+    legend=True,
+)
+ax.set_axis_off()
 plt.show()
