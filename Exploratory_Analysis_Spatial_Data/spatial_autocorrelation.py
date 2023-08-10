@@ -105,7 +105,8 @@ print(ylag)
 # make quantiles
 ylagq5 = mc.Quantiles(y=ylag, k=5)
 
-ylagq5
+print(ylagq5)
+
 # %%
 f, ax = plt.subplots(1, figsize=(9, 9))
 df.assign(cl=ylagq5.yb).plot(
@@ -385,7 +386,7 @@ li.p_sim
 # quadrants of the Moran Scatterplot above:
 # %%
 sig = li.p_sim < 0.05
-sig
+print(sig)
 
 # %%
 hotspot = sig * li.q == 1
@@ -394,18 +395,18 @@ doughnut = sig * li.q == 2
 diamond = sig * li.q == 4
 
 # %%
-hotspot
+print(hotspot)
 # %%
-coldspot
+print(coldspot)
 # %%
-doughnut
+print(doughnut)
 # %%
-diamond
+print(diamond)
 
 # %%
 spots: list[str] = ["n.sig", "hot spot"]
 labels = [spots[i] for i in hotspot * 1]
-labels
+print(labels)
 
 # %%
 df = df
@@ -427,7 +428,7 @@ plt.show()
 # %%
 spots = ["n.sig", "cold spot"]
 labels = [spots[i] for i in coldspot * 1]
-labels
+print(labels)
 
 # %%
 df = df
@@ -449,7 +450,7 @@ plt.show()
 # %%
 spots = ["n.sig", "doughnut"]
 labels = [spots[i] for i in doughnut * 1]
-labels
+print(labels)
 
 # %%
 df = df
@@ -471,7 +472,7 @@ plt.show()
 # %%
 spots = ["n.sig", "diamond"]
 labels = [spots[i] for i in diamond * 1]
-labels
+print(labels)
 
 # %%
 df = df
@@ -497,7 +498,7 @@ coldspot = 3 * (sig * li.q == 3)
 doughnut = 2 * (sig * li.q == 2)
 diamond = 4 * (sig * li.q == 4)
 spots = hotspot + coldspot + doughnut + diamond
-spots
+print(spots)
 # %%
 spot_labels: list[str] = [
     "0 ns",
