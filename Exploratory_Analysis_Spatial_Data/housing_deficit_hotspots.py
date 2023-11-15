@@ -16,7 +16,8 @@ plt.ion
 
 # %% [markdown]
 # # Costa Rica Housing Deficit Spatial autocorrelation and Moran's I analysis
-
+# Fallowing the Exploratory Analysis of Spatial Data: Spatial Autocorrelation
+# tutorial of [PySAL](https://pysal.org/esda/notebooks/spatialautocorrelation.html)
 # %%
 # Listing gpkg layers
 gpkg = "./data/censo_2011.gpkg"
@@ -128,3 +129,62 @@ ax.set_axis_off()
 plt.title("Spatial Lag Median Price (Quintiles)")
 
 plt.show()
+
+# %% [markdown]
+# Comparation between Distribution and the Spatial Lag for housing deficit
+# %%
+gdf["lag_deficit"] = ylag
+
+f, ax = plt.subplots(1, 2, figsize=(20, 20))
+gdf.plot(
+    column="df_déficit_habitacional_(dh)",
+    scheme="Quantiles",
+    k=5,
+    cmap="GnBu",
+    edgecolor="black",
+    ax=ax[0],
+)
+
+ax[0].axis(gdf.total_bounds[np.asarray([0, 2, 1, 3])])
+ax[0].set_title("Deficit habitacional")
+
+gdf.plot(
+    column="lag_deficit",
+    scheme="Quantiles",
+    k=5,
+    cmap="GnBu",
+    edgecolor="black",
+    ax=ax[1],
+)
+ax[1].axis(gdf.total_bounds[np.asarray([0, 2, 1, 3])])
+ax[1].set_title("Spatial Lag Deficit")
+
+ax[0].axis("off")
+ax[1].axis("off")
+plt.show()
+
+# %% [markdown]
+# ## Global Spatial Autocorrelation
+# ### The binary case
+
+# %%
+y.median()
+# %%
+yb = y > y.median()
+print(f"Districts above median {sum(yb)}")
+
+# %%
+print(
+    f"We have {y.count()} districts where {sum(yb)} are above median and {y.count() - sum(yb)} are below"
+)
+
+# %%
+yb = y > y.median()
+labels = ["0 Low", "1 High"]
+yb = [labels[i] for i in 1 * yb]
+gdf["yb"] = yb
+# %%
+fig, ax = plt.subplots(figsize=(20, 20), subplot_kw={"aspect": "equal"})
+
+
+gdf.plot(column="yb", cmap="binary", edgecolor="grey", legend=True, ax=ax)
