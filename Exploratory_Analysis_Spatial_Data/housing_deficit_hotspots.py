@@ -453,8 +453,6 @@ m = gdf.assign(cl=labels).explore(
     categorical=True,
     k=5,
     cmap=hmap,
-    linewidth=0.1,
-    edgecolor="white",
     legend=True,
 )
 
