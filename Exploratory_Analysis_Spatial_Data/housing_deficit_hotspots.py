@@ -2,6 +2,7 @@
 
 import esda
 import fiona
+import folium
 import geopandas as gpd
 import libpysal as lps
 import mapclassify as mc
@@ -188,3 +189,276 @@ fig, ax = plt.subplots(figsize=(20, 20), subplot_kw={"aspect": "equal"})
 
 
 gdf.plot(column="yb", cmap="binary", edgecolor="grey", legend=True, ax=ax)
+
+# %% [markdown]
+# ## Join counts
+#
+# One way to formalize a test for spatial autocorrelation in a binary attribute is to
+# consider the so-called joins. A join exists for each neighbor pair of observations,
+# and the joins are reflected in our binary spatial weights object *wq*
+
+# %%
+yb = 1 * (y > y.median())
+wq = lps.weights.Queen.from_dataframe(gdf)
+wq.transform = "b"  # type: ignore
+np.random.seed(12345)
+jc = esda.join_counts.Join_Counts(yb, wq)
+
+# %% [markdown]
+# Join counts results
+# %%
+print(f"Black on black join {jc.bb}")
+print(f"White on white join {jc.ww}")
+print(f"Black on white join {jc.bw}")
+
+print(f"All cases with all posibilites {jc.bb + jc.ww + jc.bw}")
+
+print(f"{wq.s0 / 2} unique number of joins in the spatial weights object.")
+
+# %% [markdown]
+# The critical question for us, is whether this is a departure from what we would expect
+# if the process generating the spatial distribution of the Black polygons were a
+# completely random one?
+
+# %%
+print(f"The average number of BB joins from the synthetic realizations is {jc.mean_bb}")
+
+# %% [markdown]
+# which is less than our observed count. The question is whether our observed value is
+# so different from the expectation that we would reject the null of CSR?
+
+# %%
+sbn.kdeplot(jc.sim_bb, fill=True)
+plt.vlines(jc.bb, 0, 0.075, color="r")
+plt.vlines(jc.mean_bb, 0, 0.075)
+plt.xlabel("BB Counts")
+
+# %% [markdown]
+# The density portrays the distribution of the BB counts, with the black vertical line
+# indicating the mean BB count from the synthetic realizations and the red line the
+# observed BB count for our prices. Clearly our observed value is extremely high. A
+# pseudo p-value summarizes this:
+
+# %%
+print(f"pseudo p-value {jc.p_sim_bb}")
+
+# %% [markdown]
+# Since this is below conventional significance levels, we would reject the null of
+# complete spatial randomness in favor of spatial autocorrelation in market prices.
+
+# %% [markdown]
+# ## Continuous Case
+# The join count analysis is based on a binary attribute, which can cover many
+# interesting empirical applications where one is interested in presence and absence
+# type phenomena. In our case, we artificially created the binary variable, and in the
+# process we throw away a lot of information in our originally continuous attribute.
+# Turning back to the original variable, we can explore other tests for spatial
+# autocorrelation for the continuous case. First, we transform our weights to be
+# row-standardized, from the current binary state:
+# %%
+wq.transform = "r"  # type: ignore
+y = gdf["df_déficit_habitacional_(dh)"]
+
+# %% [markdown]
+# Moran’s I is a test for global autocorrelation for a continuous attribute:
+
+# %%
+np.random.seed(12345)
+mi = esda.moran.Moran(y, wq)
+mi.I
+
+# %% [markdown]
+# Again, our value for the statistic needs to be interpreted against a reference
+# distribution under the null of CSR. PySAL uses a similar approach as we saw in the
+# join count analysis: random spatial permutations.
+
+# %%
+sbn.kdeplot(mi.sim, shade=True)
+plt.vlines(mi.I, 0, 1, color="r")
+plt.vlines(mi.EI, 0, 1)
+plt.xlabel("Moran's I")
+
+# %% [markdown]
+# Here our observed value is again in the upper tail, although visually it does not look
+# as extreme relative to the binary case. Yet, it is still statistically significant:
+
+# %%
+mi.p_sim
+
+# %% [markdown]
+# ## Local Autocorrelation: Hot Spots, Cold Spots, and Spatial Outliers
+np.random.seed(12345)
+wq.transform = "r"  # type: ignore
+
+lag_deficit = lps.weights.lag_spatial(wq, gdf["df_déficit_habitacional_(dh)"])
+deficit = gdf["df_déficit_habitacional_(dh)"]
+b, a = np.polyfit(deficit, lag_deficit, 1)
+f, ax = plt.subplots(1, figsize=(10, 10))
+
+plt.plot(deficit, lag_deficit, ".", color="firebrick")
+
+# dashed vert at mean of the deficit
+plt.vlines(deficit.mean(), lag_deficit.min(), lag_deficit.max(), linestyle="--")
+# dashed horizontal at mean of lagged deficit
+plt.hlines(lag_deficit.mean(), deficit.min(), deficit.max(), linestyle="--")
+
+# red line of best fit using global I as slope
+plt.plot(deficit, a + b * deficit, "r")
+plt.title("Moran Scatterplot")
+plt.ylabel("Spatial Lag of Deficit")
+plt.xlabel("Deficit")
+plt.show()
+
+# %% [markdown]
+# Now, instead of a single statistic, we have an array of local statistics, stored in
+# the .Is attribute, and p-values from the simulation are in p_sim.
+# %%
+li = esda.moran.Moran_Local(y, wq)
+li.q
+
+# %% [markdown]
+# We can again test for local clustering using permutations, but here we use conditional
+# random permutations (different distributions for each focal location)
+
+# %%
+(li.p_sim < 0.05).sum()
+
+# %% [markdown]
+# We can distinguish the specific type of local spatial association reflected in the
+# four quadrants of the Moran Scatterplot above:
+
+# %%
+sig = li.p_sim < 0.05
+hotspot = sig * li.q == 1
+coldspot = sig * li.q == 3
+doughnut = sig * li.q == 2
+diamond = sig * li.q == 4
+
+# %%
+spots = ["n.sig.", "hot spot"]
+labels = [spots[i] for i in hotspot * 1]
+
+# %%
+hmap = colors.ListedColormap(["red", "lightgrey"])
+f, ax = plt.subplots(1, figsize=(15, 15))
+gdf.assign(cl=labels).plot(
+    column="cl",
+    categorical=True,
+    k=2,
+    cmap=hmap,
+    linewidth=0.1,
+    ax=ax,
+    edgecolor="white",
+    legend=True,
+)
+ax.set_axis_off()
+plt.show()
+
+# %%
+spots = ["n.sig.", "cold spot"]
+labels = [spots[i] for i in coldspot * 1]
+
+# %%
+hmap = colors.ListedColormap(["blue", "lightgrey"])
+f, ax = plt.subplots(1, figsize=(15, 15))
+gdf.assign(cl=labels).plot(
+    column="cl",
+    categorical=True,
+    k=2,
+    cmap=hmap,
+    linewidth=0.1,
+    ax=ax,
+    edgecolor="white",
+    legend=True,
+)
+ax.set_axis_off()
+plt.show()
+
+# %%
+spots = ["n.sig.", "doughnut"]
+labels = [spots[i] for i in doughnut * 1]
+
+# %%
+hmap = colors.ListedColormap(["lightblue", "lightgrey"])
+f, ax = plt.subplots(1, figsize=(15, 15))
+gdf.assign(cl=labels).plot(
+    column="cl",
+    categorical=True,
+    k=2,
+    cmap=hmap,
+    linewidth=0.1,
+    ax=ax,
+    edgecolor="white",
+    legend=True,
+)
+ax.set_axis_off()
+plt.show()
+
+# %%
+spots = ["n.sig.", "diamond"]
+labels = [spots[i] for i in diamond * 1]
+
+# %%
+hmap = colors.ListedColormap(["pink", "lightgrey"])
+f, ax = plt.subplots(1, figsize=(15, 15))
+gdf.assign(cl=labels).plot(
+    column="cl",
+    categorical=True,
+    k=2,
+    cmap=hmap,
+    linewidth=0.1,
+    ax=ax,
+    edgecolor="white",
+    legend=True,
+)
+ax.set_axis_off()
+plt.show()
+
+# %%
+sig = 1 * (li.p_sim < 0.05)
+hotspot = 1 * (sig * li.q == 1)
+coldspot = 3 * (sig * li.q == 3)
+doughnut = 2 * (sig * li.q == 2)
+diamond = 4 * (sig * li.q == 4)
+spots = hotspot + coldspot + doughnut + diamond
+spots
+
+# %%
+spot_labels = ["0 ns", "1 hot spot", "2 doughnut", "3 cold spot", "4 diamond"]
+labels = [spot_labels[i] for i in spots]
+
+# %%
+hmap = colors.ListedColormap(["lightgrey", "red", "lightblue", "blue", "pink"])
+f, ax = plt.subplots(1, figsize=(15, 15))
+gdf.assign(cl=labels).plot(
+    column="cl",
+    categorical=True,
+    k=5,
+    cmap=hmap,
+    linewidth=0.1,
+    ax=ax,
+    edgecolor="white",
+    legend=True,
+)
+ax.set_axis_off()
+plt.show()
+
+# %% [markdown]
+# ## Interactive mapping with GeoPandas
+
+# %%
+hmap = colors.ListedColormap(["lightgrey", "red", "lightblue", "blue", "pink"])
+m = gdf.assign(cl=labels).explore(
+    column="cl",
+    categorical=True,
+    k=5,
+    cmap=hmap,
+    linewidth=0.1,
+    edgecolor="white",
+    legend=True,
+)
+
+folium.TileLayer("CartoDB positron", show=False).add_to(m)
+folium.LayerControl().add_to(m)
+
+m
